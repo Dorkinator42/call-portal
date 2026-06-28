@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Calls</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      min-height: 100vh;
+      color: #111;
+    }
+
+    /* NAV */
+    nav {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+      color: #111;
+    }
+
+    .nav-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: #4f46e5;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-logo-icon svg { width: 18px; height: 18px; fill: #fff; }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .nav-client-name {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .btn-logout {
+      font-size: 13px;
+      color: #4f46e5;
+      background: none;
+      border: 1px solid #4f46e5;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn-logout:hover { background: #f0f0ff; }
+
+    /* MAIN */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 28px;
+    }
+
+    /* STATS */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .stat-sub {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    /* FILTERS */
+    .filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #555;
+      transition: all 0.15s;
+    }
+
+    .filter-btn.active {
+      background: #4f46e5;
+      color: #fff;
+      border-color: #4f46e5;
+    }
+
+    /* TABLE */
+    .table-wrap {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+      padding: 14px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      background: #fafafa;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f5f5f5;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+
+    tbody td {
+      padding: 14px 20px;
+      font-size: 14px;
+      color: #333;
+      vertical-align: top;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-answered  { background: #ecfdf5; color: #065f46; }
+    .badge-voicemail { background: #eff6ff; color: #1e40af; }
+    .badge-failed    { background: #fef2f2; color: #991b1b; }
+    .badge-pending   { background: #fefce8; color: #854d0e; }
+
+    .caller-number { font-weight: 600; color: #111; }
+    .call-date     { color: #888; font-size: 13px; }
+
+    /* EXPANDED ROW */
+    .detail-row { display: none; }
+    .detail-row.open { display: table-row; }
+
+    .detail-cell {
+      padding: 0 20px 20px !important;
+      background: #fafafa;
+    }
+
+    .detail-inner {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .detail-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .detail-section:last-child { border-bottom: none; }
+
+    .detail-section h3 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+      margin-bottom: 10px;
+    }
+
+    .transcript-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    .fields-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .field-item label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 3px;
+    }
+
+    .field-item span {
+      font-size: 14px;
+      color: #111;
+      font-weight: 500;
+    }
+
+    .recording-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #4f46e5;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    .recording-link:hover { text-decoration: underline; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #aaa;
+    }
+
+    .empty-state p { font-size: 15px; }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    @media (max-width: 700px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .fields-grid { grid-template-columns: 1fr; }
+      thead th:nth-child(3),
+      thead th:nth-child(4),
+      tbody td:nth-child(3),
+      tbody td:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.58.57 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.58 1 1 0 01-.25 1.01l-2.2 2.2z"/></svg>
+    </div>
+    Call Portal
+  </div>
+  <div class="nav-right">
+    <span class="nav-client-name" id="clientName"></span>
+    <button class="btn-logout" onclick="logout()">Log Out</button>
+  </div>
+</nav>
+
+<main>
+  <h1>Your Calls</h1>
+  <p class="subtitle" id="dateRange">Loading...</p>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total Calls</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">this month</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Answered</div>
+      <div class="stat-value" id="statAnswered">—</div>
+      <div class="stat-sub">with transcript</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Voicemails</div>
+      <div class="stat-value" id="statVoicemail">—</div>
+      <div class="stat-sub">leads captured</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Missed</div>
+      <div class="stat-value" id="statMissed">—</div>
+      <div class="stat-sub">no info captured</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All Calls</button>
+    <button class="filter-btn" onclick="setFilter('answered', this)">Answered</button>
+    <button class="filter-btn" onclick="setFilter('voicemail', this)">Voicemails</button>
+  </div>
+
+  <div class="table-wrap">
+    <div class="loading" id="loadingState">Loading your calls...</div>
+    <table id="callsTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Caller</th>
+          <th>Type</th>
+          <th>Date & Time</th>
+          <th>Duration</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="callsBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <p>No calls found.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+  const SUPABASE_URL      = 'https://xwgcmujtjjdwgeuxaped.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_zXW-6roQqrDzLvUFbk7ymA_WqjoAcsB';
+
+  let accessToken  = sessionStorage.getItem('sb_access_token');
+  let allCalls     = [];
+  let activeFilter = 'all';
+  let expandedRow  = null;
+
+  // ── AUTH ────────────────────────────────────────────────────────────────────
+
+  function logout() {
+    sessionStorage.removeItem('sb_access_token');
+    sessionStorage.removeItem('sb_refresh_token');
+    window.location.href = 'login.html';
+  }
+
+  function authHeaders() {
+    return {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  async function getUser() {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  // ── DATA ────────────────────────────────────────────────────────────────────
+
+  async function api(path) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error('Request failed');
+    return res.json();
+  }
+
+  async function loadDashboard() {
+    if (!accessToken) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const user = await getUser();
+    if (!user) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    // Get client record
+    const clients = await api(`clients?user_id=eq.${user.id}&select=id,name`);
+    if (!clients.length) {
+      document.getElementById('loadingState').textContent = 'No account found. Contact your account manager.';
+      return;
+    }
+
+    const client = clients[0];
+    document.getElementById('clientName').textContent = client.name;
+    document.title = `${client.name} — Call Portal`;
+
+    // Get calls with transcripts and voicemail captures
+    const calls = await api(
+      `calls?client_id=eq.${client.id}` +
+      `&select=id,caller_number,call_type,recording_url,duration_seconds,status,created_at,` +
+      `transcripts(transcript_text),voicemail_captures(caller_name,callback_number,reason)` +
+      `&order=created_at.desc&limit=200`
+    );
+
+    allCalls = calls;
+    renderStats(calls);
+    renderCalls(calls);
+    updateDateRange();
+  }
+
+  function renderStats(calls) {
+    const now   = new Date();
+    const month = calls.filter(c => new Date(c.created_at).getMonth() === now.getMonth());
+
+    document.getElementById('statTotal').textContent     = month.length;
+    document.getElementById('statAnswered').textContent  = month.filter(c => c.call_type === 'answered').length;
+    document.getElementById('statVoicemail').textContent = month.filter(c => c.call_type === 'voicemail').length;
+    document.getElementById('statMissed').textContent    = month.filter(c =>
+      c.call_type === 'voicemail' &&
+      c.voicemail_captures?.[0]?.caller_name == null
+    ).length;
+  }
+
+  function updateDateRange() {
+    const now = new Date();
+    document.getElementById('dateRange').textContent =
+      `Showing all calls · ${now.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
+  }
+
+  function setFilter(filter, btn) {
+    activeFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const filtered = filter === 'all' ? allCalls : allCalls.filter(c => c.call_type === filter);
+    renderCalls(filtered);
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
+    });
+  }
+
+  function formatDuration(secs) {
+    if (!secs) return '—';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  }
+
+  function badgeHtml(type, status) {
+    if (status === 'failed')  return '<span class="badge badge-failed">Failed</span>';
+    if (status === 'pending') return '<span class="badge badge-pending">Processing</span>';
+    if (type === 'answered')  return '<span class="badge badge-answered">Answered</span>';
+    return '<span class="badge badge-voicemail">Voicemail</span>';
+  }
+
+  function renderCalls(calls) {
+    document.getElementById('loadingState').style.display = 'none';
+    const tbody = document.getElementById('callsBody');
+    tbody.innerHTML = '';
+    expandedRow = null;
+
+    if (!calls.length) {
+      document.getElementById('callsTable').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('callsTable').style.display = 'table';
+    document.getElementById('emptyState').style.display = 'none';
+
+    calls.forEach((call, i) => {
+      const transcript = call.transcripts?.[0]?.transcript_text || '';
+      const vm         = call.voicemail_captures?.[0] || {};
+
+      // Main row
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="caller-number">${call.caller_number || 'Unknown'}</div>
+        </td>
+        <td>${badgeHtml(call.call_type, call.status)}</td>
+        <td><span class="call-date">${formatDate(call.created_at)}</span></td>
+        <td>${formatDuration(call.duration_seconds)}</td>
+        <td>${call.status === 'transcribed' ? '✓ Ready' : call.status === 'failed' ? 'Error' : 'Processing…'}</td>
+      `;
+      tr.onclick = () => toggleDetail(i);
+      tbody.appendChild(tr);
+
+      // Detail row
+      const detailTr = document.createElement('tr');
+      detailTr.className = 'detail-row';
+      detailTr.id = `detail-${i}`;
+
+      let detailContent = '';
+
+      if (call.call_type === 'voicemail') {
+        detailContent += `
+          <div class="detail-section">
+            <h3>Captured Information</h3>
+            <div class="fields-grid">
+              <div class="field-item">
+                <label>Caller Name</label>
+                <span>${vm.caller_name || '—'}</span>
+              </div>
+              <div class="field-item">
+                <label>Callback Number</label>
+                <span>${vm.callback_number || '—'}</span>
+              </div>
+              <div class="field-item">
+                <label>Reason for Call</label>
+                <span>${vm.reason || '—'}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (transcript) {
+        detailContent += `
+          <div class="detail-section">
+            <h3>Transcript</h3>
+            <p class="transcript-text">${transcript}</p>
+          </div>
+        `;
+      }
+
+      if (call.recording_url) {
+        detailContent += `
+          <div class="detail-section">
+            <h3>Recording</h3>
+            <a class="recording-link" href="${call.recording_url}" target="_blank">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+              </svg>
+              Play Recording
+            </a>
+          </div>
+        `;
+      }
+
+      if (!detailContent) {
+        detailContent = `<div class="detail-section"><p style="color:#aaa;font-size:14px;">No details available yet.</p></div>`;
+      }
+
+      detailTr.innerHTML = `
+        <td class="detail-cell" colspan="5">
+          <div class="detail-inner">${detailContent}</div>
+        </td>
+      `;
+      tbody.appendChild(detailTr);
+    });
+  }
+
+  function toggleDetail(i) {
+    const row = document.getElementById(`detail-${i}`);
+    if (expandedRow && expandedRow !== row) {
+      expandedRow.classList.remove('open');
+    }
+    row.classList.toggle('open');
+    expandedRow = row.classList.contains('open') ? row : null;
+  }
+
+  loadDashboard();
+</script>
+
+</body>
+</html>
