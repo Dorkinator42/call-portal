@@ -295,6 +295,75 @@
       font-size: 14px;
     }
 
+    /* GROUPED ROWS */
+    .group-row { cursor: pointer; background: #fff; }
+    .group-row:hover { background: #f8f8ff; }
+
+    .group-row td:first-child {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px;
+    }
+
+    .chevron {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      transition: transform 0.15s;
+      color: #bbb;
+      flex-shrink: 0;
+    }
+
+    .chevron.open { transform: rotate(90deg); }
+
+    .caller-info { display: flex; flex-direction: column; gap: 2px; }
+    .caller-name-label { font-size: 12px; color: #888; }
+
+    .interaction-count {
+      display: inline-block;
+      background: #f0f0ff;
+      color: #4f46e5;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .returning-badge {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-left: 6px;
+    }
+
+    /* SUB ROWS */
+    .sub-rows-wrap { display: none; }
+    .sub-rows-wrap.open { display: table-row-group; }
+
+    .sub-row { background: #fafafa; }
+    .sub-row:hover { background: #f0f0ff; cursor: pointer; }
+
+    .sub-row td {
+      padding: 10px 20px 10px 52px !important;
+      font-size: 13px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* DETAIL ROW */
+    .detail-row { display: none; }
+    .detail-row.open { display: table-row; }
+
+    .detail-cell {
+      padding: 0 20px 16px 52px !important;
+      background: #fafafa;
+    }
+
     @media (max-width: 700px) {
       .stats { grid-template-columns: repeat(2, 1fr); }
       .fields-grid { grid-template-columns: 1fr; }
@@ -359,9 +428,9 @@
       <thead>
         <tr>
           <th>Caller</th>
-          <th>Type</th>
-          <th>Date & Time</th>
-          <th>Duration</th>
+          <th>Interactions</th>
+          <th>Last Call</th>
+          <th>Last Type</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -377,10 +446,11 @@
   const SUPABASE_URL      = 'https://xwgcmujtjjdwgeuxaped.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_zXW-6roQqrDzLvUFbk7ymA_WqjoAcsB';
 
-  let accessToken  = sessionStorage.getItem('sb_access_token');
-  let allCalls     = [];
-  let activeFilter = 'all';
-  let expandedRow  = null;
+  let accessToken   = sessionStorage.getItem('sb_access_token');
+  let allCalls      = [];
+  let activeFilter  = 'all';
+  let expandedGroup = null;
+  let expandedDetail = null;
 
   // ── AUTH ────────────────────────────────────────────────────────────────────
 
@@ -501,11 +571,75 @@
     return '<span class="badge badge-voicemail">Voicemail</span>';
   }
 
+  function groupByCaller(calls) {
+    const map = new Map();
+    calls.forEach(call => {
+      const num = call.caller_number || 'Unknown';
+      if (!map.has(num)) map.set(num, []);
+      map.get(num).push(call);
+    });
+    // Sort groups by most recent call
+    return Array.from(map.entries()).sort((a, b) =>
+      new Date(b[1][0].created_at) - new Date(a[1][0].created_at)
+    );
+  }
+
+  function bestCallerName(calls) {
+    for (const c of calls) {
+      const name = c.voicemail_captures?.[0]?.caller_name;
+      if (name) return name;
+    }
+    return null;
+  }
+
+  function buildDetailContent(call) {
+    const transcript = call.transcripts?.[0]?.transcript_text || '';
+    const vm = call.voicemail_captures?.[0] || {};
+    let html = '';
+
+    if (call.call_type === 'voicemail') {
+      html += `
+        <div class="detail-section">
+          <h3>Captured Information</h3>
+          <div class="fields-grid">
+            <div class="field-item"><label>Caller Name</label><span>${vm.caller_name || '—'}</span></div>
+            <div class="field-item"><label>Callback Number</label><span>${vm.callback_number || '—'}</span></div>
+            <div class="field-item"><label>Reason for Call</label><span>${vm.reason || '—'}</span></div>
+          </div>
+        </div>`;
+    }
+
+    if (transcript) {
+      html += `
+        <div class="detail-section">
+          <h3>Transcript</h3>
+          <p class="transcript-text">${transcript}</p>
+        </div>`;
+    }
+
+    if (call.recording_url) {
+      html += `
+        <div class="detail-section">
+          <h3>Recording</h3>
+          <a class="recording-link" href="${call.recording_url}" target="_blank">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+            </svg>
+            Play Recording
+          </a>
+        </div>`;
+    }
+
+    if (!html) html = `<div class="detail-section"><p style="color:#aaa;font-size:14px;">No details available yet.</p></div>`;
+    return html;
+  }
+
   function renderCalls(calls) {
     document.getElementById('loadingState').style.display = 'none';
     const tbody = document.getElementById('callsBody');
     tbody.innerHTML = '';
-    expandedRow = null;
+    expandedGroup = null;
+    expandedDetail = null;
 
     if (!calls.length) {
       document.getElementById('callsTable').style.display = 'none';
@@ -516,96 +650,95 @@
     document.getElementById('callsTable').style.display = 'table';
     document.getElementById('emptyState').style.display = 'none';
 
-    calls.forEach((call, i) => {
-      const transcript = call.transcripts?.[0]?.transcript_text || '';
-      const vm         = call.voicemail_captures?.[0] || {};
+    const groups = groupByCaller(calls);
 
-      // Main row
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
+    groups.forEach(([callerNumber, groupCalls], gi) => {
+      const latest    = groupCalls[0];
+      const count     = groupCalls.length;
+      const returning = count > 1;
+      const name      = bestCallerName(groupCalls);
+
+      // ── Group header row ──
+      const groupTr = document.createElement('tr');
+      groupTr.className = 'group-row';
+      groupTr.innerHTML = `
         <td>
-          <div class="caller-number">${call.caller_number || 'Unknown'}</div>
-        </td>
-        <td>${badgeHtml(call.call_type, call.status)}</td>
-        <td><span class="call-date">${formatDate(call.created_at)}</span></td>
-        <td>${formatDuration(call.duration_seconds)}</td>
-        <td>${call.status === 'transcribed' ? '✓ Ready' : call.status === 'failed' ? 'Error' : 'Processing…'}</td>
-      `;
-      tr.onclick = () => toggleDetail(i);
-      tbody.appendChild(tr);
-
-      // Detail row
-      const detailTr = document.createElement('tr');
-      detailTr.className = 'detail-row';
-      detailTr.id = `detail-${i}`;
-
-      let detailContent = '';
-
-      if (call.call_type === 'voicemail') {
-        detailContent += `
-          <div class="detail-section">
-            <h3>Captured Information</h3>
-            <div class="fields-grid">
-              <div class="field-item">
-                <label>Caller Name</label>
-                <span>${vm.caller_name || '—'}</span>
-              </div>
-              <div class="field-item">
-                <label>Callback Number</label>
-                <span>${vm.callback_number || '—'}</span>
-              </div>
-              <div class="field-item">
-                <label>Reason for Call</label>
-                <span>${vm.reason || '—'}</span>
-              </div>
+          <svg class="chevron" id="chev-${gi}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          <div class="caller-info">
+            <div class="caller-number">
+              ${callerNumber}
+              ${returning ? '<span class="returning-badge">Returning</span>' : ''}
             </div>
+            ${name ? `<div class="caller-name-label">${name}</div>` : ''}
           </div>
-        `;
-      }
-
-      if (transcript) {
-        detailContent += `
-          <div class="detail-section">
-            <h3>Transcript</h3>
-            <p class="transcript-text">${transcript}</p>
-          </div>
-        `;
-      }
-
-      if (call.recording_url) {
-        detailContent += `
-          <div class="detail-section">
-            <h3>Recording</h3>
-            <a class="recording-link" href="${call.recording_url}" target="_blank">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
-              </svg>
-              Play Recording
-            </a>
-          </div>
-        `;
-      }
-
-      if (!detailContent) {
-        detailContent = `<div class="detail-section"><p style="color:#aaa;font-size:14px;">No details available yet.</p></div>`;
-      }
-
-      detailTr.innerHTML = `
-        <td class="detail-cell" colspan="5">
-          <div class="detail-inner">${detailContent}</div>
         </td>
+        <td><span class="interaction-count">${count} ${count === 1 ? 'call' : 'calls'}</span></td>
+        <td><span class="call-date">${formatDate(latest.created_at)}</span></td>
+        <td>${badgeHtml(latest.call_type, latest.status)}</td>
+        <td>${latest.status === 'transcribed' ? '✓ Ready' : latest.status === 'failed' ? 'Error' : 'Processing…'}</td>
       `;
-      tbody.appendChild(detailTr);
+      groupTr.onclick = () => toggleGroup(gi);
+      tbody.appendChild(groupTr);
+
+      // ── Sub-rows wrapper (one per call in group) ──
+      const subGroup = document.createElement('tbody');
+      subGroup.className = 'sub-rows-wrap';
+      subGroup.id = `group-${gi}`;
+
+      groupCalls.forEach((call, ci) => {
+        const subTr = document.createElement('tr');
+        subTr.className = 'sub-row';
+        subTr.innerHTML = `
+          <td>${badgeHtml(call.call_type, call.status)} <span style="color:#888;margin-left:6px;">${formatDate(call.created_at)}</span></td>
+          <td></td>
+          <td></td>
+          <td>${formatDuration(call.duration_seconds)}</td>
+          <td>${call.status === 'transcribed' ? '✓ Ready' : call.status === 'failed' ? 'Error' : 'Processing…'}</td>
+        `;
+        subTr.onclick = (e) => { e.stopPropagation(); toggleDetail(gi, ci); };
+        subGroup.appendChild(subTr);
+
+        // Detail row for each sub-call
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'detail-row';
+        detailTr.id = `detail-${gi}-${ci}`;
+        detailTr.innerHTML = `
+          <td class="detail-cell" colspan="5">
+            <div class="detail-inner">${buildDetailContent(call)}</div>
+          </td>`;
+        subGroup.appendChild(detailTr);
+      });
+
+      tbody.appendChild(subGroup);
     });
   }
 
-  function toggleDetail(i) {
-    const row = document.getElementById(`detail-${i}`);
-    if (expandedRow && expandedRow !== row) {
-      expandedRow.classList.remove('open');
+  function toggleGroup(gi) {
+    const wrap = document.getElementById(`group-${gi}`);
+    const chev = document.getElementById(`chev-${gi}`);
+    const isOpen = wrap.classList.contains('open');
+
+    // Close previous
+    if (expandedGroup && expandedGroup !== wrap) {
+      expandedGroup.classList.remove('open');
+      expandedGroup.previousElementSibling?.querySelector('.chevron')?.classList.remove('open');
+    }
+
+    wrap.classList.toggle('open', !isOpen);
+    chev.classList.toggle('open', !isOpen);
+    expandedGroup = !isOpen ? wrap : null;
+    expandedDetail = null;
+  }
+
+  function toggleDetail(gi, ci) {
+    const row = document.getElementById(`detail-${gi}-${ci}`);
+    if (expandedDetail && expandedDetail !== row) {
+      expandedDetail.classList.remove('open');
     }
     row.classList.toggle('open');
-    expandedRow = row.classList.contains('open') ? row : null;
+    expandedDetail = row.classList.contains('open') ? row : null;
   }
 
   loadDashboard();

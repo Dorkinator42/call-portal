@@ -183,10 +183,7 @@
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({
-          email,
-          redirect_to: 'https://dorkinator42.github.io/call-portal/login.html'
-        }),
+        body: JSON.stringify({ email }),
       });
 
       if (!res.ok) {
